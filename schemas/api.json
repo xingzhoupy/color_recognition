@@ -1,5 +1,23 @@
 {
-  "case_assign": {
-
+  "recognition": {
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "http://example.com/example.json",
+    "type": "object",
+    "title": "The Root Schema",
+    "description": "The root schema comprises the entire JSON document.",
+    "required": [
+      "url"
+    ],
+    "properties": {
+      "url": {
+        "$id": "#/properties/url",
+        "type": "string",
+        "title": "The Url Schema",
+        "description": "An explanation about the purpose of this instance.",
+        "default": "",
+        "examples": [
+        ]
+      }
+    }
   }
 }

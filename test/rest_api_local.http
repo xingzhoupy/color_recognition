@@ -1,0 +1,7 @@
+### 获取案件类型（投诉、咨询）
+POST http://127.0.0.1:5050/colorDiscrimination
+Accept: */*
+
+{"url":"/mnt/"}
+
+###
