@@ -13,3 +13,5 @@ pyrsistent==0.15.6
 six==1.13.0
 Werkzeug==0.16.0
 zipp==0.6.0
+pyyaml
+
