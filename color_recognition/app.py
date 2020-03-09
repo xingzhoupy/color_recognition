@@ -3,11 +3,14 @@
 # @Author : Allen 
 # @Site :
 import json
+import numpy as np
+import cv2
 from flask import request
 from jsonschema import ValidationError
 import traceback
-from color_recognition import app, jsonschema
+from color_recognition import app, jsonschema, ci
 from flask import jsonify
+
 from color_recognition.helper import exists_file
 
 __author__ = "zhouxing"
@@ -18,7 +21,7 @@ def hello_world():
     return "Hello World!"
 
 
-@app.route('/colorDiscrimination', methods=['POST'])
+@app.route('/colorDiscrimination', methods=['POST', "GET"])
 @jsonschema.validate('api', 'recognition')
 def recognition():
     '''OA接口'''
@@ -30,7 +33,9 @@ def recognition():
         # 判断文件是否存在
         path = exists_file(url)
         if path:
-            pass
+            image = cv2.imdecode(np.fromfile(path, dtype=np.uint8), -1)
+            result = ci.predict(image)
+            return jsonify(code=1, data=result)
         else:
             return jsonify(code=2, msg="文件不存在")
 
@@ -47,4 +52,4 @@ def on_validation_error(e):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5050)
+    app.run(host='0.0.0.0', port=5050, debug=True)

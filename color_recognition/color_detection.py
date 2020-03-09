@@ -2,13 +2,20 @@
 # @Time 2020/3/2 10:19
 # @Author wcy
 
+# -*- coding: utf-8 -*-
+# @Time 2020/3/7 17:11
+# @Author wcy
+
 import collections
 import colorsys
 import copy
 import csv
 import math
 import os
-
+import pickle
+import sys
+import copy
+import pandas as pd
 import cv2
 import imageio
 import numpy as np
@@ -16,23 +23,30 @@ import re
 import matplotlib.pyplot as plt
 import xlrd
 from PIL import Image, ImageDraw, ImageFont
+from colormath.color_diff import delta_e_cie2000, delta_e_cmc
 from sklearn.cluster import DBSCAN, KMeans
 from sklearn.metrics import silhouette_score
+from color_recognition.util.rgb2lab import RGB2Lab
+from colormath.color_objects import LabColor
 
-from util.rgb2lab import RGB2Lab
+np.random.seed(1)
 
 
 class ColorType(object):
     PURE = 1  # 纯色
     JOINT = 2  # 拼接
     TEXTURE = 3  # 花纹
+    color_dict = {PURE:"纯色", JOINT:"拼接", TEXTURE:"花纹"}
 
 
 class ColorIdentify(object):
-    def __init__(self, file_path=r'../resources/颜色字典.xlsx'):
+    def __init__(self, color_file_path=r'..\resources\color.xlsx'):
+        self.min_height = 256  # 处理时压缩图片高度至此
+        self.exist_colors = {}
+        self.unusual_colors = []
         self.costume_color_dict = {}  # 服饰颜色字典， 颜色名：RGB
         self.basis_color_dict = {}  # 基础颜色字典
-        self.init_costume_color_dict(file_path)  # 初始化服饰颜色字典
+        self.init_costume_color_dict(color_file_path)  # 初始化服饰颜色字典
         self.init_basis_color_dict()  # 初始化基础颜色字典
 
     def init_costume_color_dict(self, file_path):
@@ -40,19 +54,15 @@ class ColorIdentify(object):
         file_path = file_path.encode('utf-8').decode('utf-8')
         # 获取数据
         data = xlrd.open_workbook(file_path)
-        table = data.sheet_by_name('猪圈颜色')
+        table = data.sheet_by_name('Sheet1')
         nrows = table.nrows
         # 获取一行的数值，例如第5行
         for i in range(nrows):
             rowvalue = table.row_values(i)
-            color_name1 = rowvalue[2]
-            color_value1 = rowvalue[3]
-            color_name2 = rowvalue[6]
-            color_value2 = rowvalue[7]
+            color_name1 = rowvalue[1]
+            color_value1 = rowvalue[2].strip()
             if re.match('[0-9]* [0-9]* [0-9]*', color_value1):
                 self.costume_color_dict[color_name1] = [int(i) for i in color_value1.split(" ")]
-            if re.match('[0-9]* [0-9]* [0-9]*', color_value2):
-                self.costume_color_dict[color_name2] = [int(i) for i in color_value2.split(" ")]
 
     def init_basis_color_dict(self):
         """
@@ -148,230 +158,181 @@ class ColorIdentify(object):
         color_list.append(upper_purple)
         self.basis_color_dict['purple'] = color_list
 
-    def get_color_type(self, frame):
+
+    def get_dominant_image(self, frame, mask, n_colors):
+        def recreate_image(codebook, labels, mask, w, h):
+            """从代码簿和标签中重新创建（压缩）图像"""
+            mask_flatten = mask.flatten()
+            labels_ = np.zeros_like(mask_flatten, dtype=np.int) - 1
+            labels_[mask_flatten.astype(np.bool)] = labels
+            labels_ = np.reshape(labels_, mask.shape)
+            d = codebook.shape[1]
+            image = np.zeros((w, h, d))
+            image[labels_ == -1] = [0, 255, 0]
+            for i, rgb in enumerate(codebook):
+                image[labels_ == i] = rgb
+            return image.astype(np.uint8)
+
+        w, h, c = tuple(frame.shape)
+        image_array = frame[mask.astype(np.bool)]
+        kmeans = KMeans(n_clusters=n_colors+1, random_state=0).fit(image_array)
+        labels = kmeans.predict(image_array)
+        image = recreate_image(kmeans.cluster_centers_, labels, mask, w, h)
+        return image
+
+    def get_color_type(self, image_resize, dominant_image, mask, dominant_color_names):
         """
-        获取颜色类型
+        获取颜色类型(纯色，拼接， 杂色）
         :param frame:
         :return: ColorType
         """
-        texture = cv2.Canny(frame, 100, 200)  # 边缘检测
-        texture_len = np.sum(texture == 255)  # 边缘长度
-        # print(texture_len)
-        if texture_len < 2500:
-            return ColorType.PURE  # 返回纯色类型
-        elif texture_len < 4000:
-            return ColorType.JOINT  # 返回拼接类型
-        return ColorType.TEXTURE  # 返回花纹类型
+        color_type = ColorType.PURE
+        dominant_color_names_bak = copy.deepcopy(dominant_color_names)
+        similar_color = {}
+        for i, dominant_color_name1 in enumerate(dominant_color_names):
+            for j, dominant_color_name2 in enumerate(dominant_color_names[i + 1:]):
+                distance = self.color_distance_cie2000(dominant_color_name1[1], dominant_color_name2[1], Kl=1)
+                similar_color[(i,j+i+1)] = distance
+        # 移除相近的颜色
+        [dominant_color_names_bak.pop(k[0] if dominant_color_names_bak[k[0]][3]<dominant_color_names_bak[k[1]][3] else k[1]) for k, v in similar_color.items() if v<3]
+        all_color_rgb = np.array([i[3] for i in dominant_color_names_bak])
+        dominant_color_rgb = np.array([i[3] for i in dominant_color_names_bak if i[3]>0.1])
+        if len(all_color_rgb) > 3:
+            return ColorType.TEXTURE  # 杂色
+        if 1 < len(dominant_color_rgb) <= 3 and dominant_color_rgb.max()<=0.8:
+            return ColorType.JOINT  # 拼接色
+        if len(dominant_color_rgb)==1 or dominant_color_rgb.max()>0.8:
+            return ColorType.PURE  # 纯色
+        return color_type
 
-    def get_n_color(self, frame):
+    def get_basis_color_num(self, frame, frame_mask):
         """
         获取基础颜色种数
         :param frame:
-        :return: 基础颜色种数颜色 （int）
+        :param frame_mask: 掩码 忽略获取颜色的部分
+        :return: 基础颜色种数颜色数
         """
+        valid_mask = np.sum(frame_mask)  # 有效mask和
+        kerne2 = np.ones((5, 5), np.float32) / 25
+        frame = cv2.filter2D(frame, -1, kerne2)  # 平滑圖片
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        color_dict = self.basis_color_dict
         count = 0
-        for d in color_dict:
-            if isinstance(color_dict[d], list):
-                mask = cv2.inRange(hsv, color_dict[d][0], color_dict[d][1])
-            elif isinstance(color_dict[d], tuple):
-                mask1 = cv2.inRange(hsv, color_dict[d][0][0], color_dict[d][0][1])
-                mask2 = cv2.inRange(hsv, color_dict[d][1][0], color_dict[d][1][1])
+        for d in self.basis_color_dict:
+            if isinstance(self.basis_color_dict[d], list):
+                mask = cv2.inRange(hsv, self.basis_color_dict[d][0], self.basis_color_dict[d][1])
+            else:
+                # if isinstance(color_dict[d], tuple)
+                mask1 = cv2.inRange(hsv, self.basis_color_dict[d][0][0], self.basis_color_dict[d][0][1])
+                mask2 = cv2.inRange(hsv, self.basis_color_dict[d][1][0], self.basis_color_dict[d][1][1])
                 mask = mask1 + mask2
-            pro = np.sum(mask == 255) / mask.size
-            # cv2.imshow(d, mask)
-            # print(d, pro)
-            if pro > 0.1 / len(color_dict.keys()):
+            mask3 = mask * frame_mask
+            pro = np.sum(mask3 == 255) / valid_mask
+            # print(pro)
+            if pro > 0.8 / len(self.basis_color_dict.keys()):
+                # print(d)
                 count += 1
-        # cv2.waitKey(0)
         return count
 
-    def get_dominant_color2(self, frame, color_type, color_num):
-        def flatten(a):
-            for each in a:
-                if not isinstance(each, list):
-                    yield each
-                else:
-                    yield from flatten(each)
-
-        def takeSecond(elem):
-            return elem[1]
-
-        image = Image.fromarray(frame.astype('uint8')).convert('RGB')
-        height = 128
-        width = int(image.height * height / image.width)
-        train_image = image.resize((width, height), Image.ANTIALIAS)
-        dataset = [[(r, g, b)] * count for count, (r, g, b) in
-                   train_image.getcolors(train_image.size[0] * train_image.size[1]) if
-                   (min(abs(r * 2104 + g * 4130 + b * 802 + 4096 + 131072) >> 13, 235) - 16.0) / (235 - 16) < 0.9]
-        dataset = list(flatten(dataset))
-        # y_pred1 = DBSCAN().fit_predict(dataset)
-        estimator = KMeans(n_clusters=color_num, random_state=9)
-        try:
-            estimator.fit(dataset)
-        except Exception as e:
-            print(e)
-        center = estimator.cluster_centers_.tolist()
-        score = [np.sum(estimator.labels_ == i) for i in range(color_num)]
-        dominant_colors = [[c, s] for c, s in zip(center, score)]
-        dominant_colors.sort(key=takeSecond, reverse=True)
-        return dominant_colors
-
-    def get_dominant_color1(self, frame, color_type, color_num):
-        """
-        获取颜色主成分
-        :param frame:
-        :return:
-        """
-
-        def takeSecond(elem):
-            return elem[1]
-
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        image = Image.fromarray(frame.astype('uint8')).convert('RGB')
-        dominant_colors = []
-        for count, (r, g, b) in image.getcolors(image.size[0] * image.size[1]):
-            # 转为HSV标准
-            hue, saturation, value = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
-            y = min(abs(r * 2104 + g * 4130 + b * 802 + 4096 + 131072) >> 13, 235)
-            y = (y - 16.0) / (235 - 16)
-            # 忽略高亮色
-            if y > 0.9:
-                continue
-            score = (saturation + 0.1) * count
-            dominant_colors.append([[r, g, b], score])
-        dominant_colors.sort(key=takeSecond, reverse=True)
-        if len(dominant_colors) == 0:
-            dominant_colors = [[[frame[..., 0].mean(), frame[..., 1].mean(), frame[..., 2].mean()], 1]]
-        return dominant_colors
+    def color_distance_cie2000(self, rgb_1, rgb_2, Kl=2, Kc=1, Kh=1):
+        """计算色差"""
+        lab1 = RGB2Lab(rgb_1[::-1])
+        lab2 = RGB2Lab(rgb_2[::-1])
+        color1 = LabColor(lab_l=lab1[0], lab_a=lab1[1], lab_b=lab1[2])
+        color2 = LabColor(lab_l=lab2[0], lab_a=lab2[1], lab_b=lab2[2])
+        delta_e = delta_e_cie2000(color1, color2, Kl=2, Kc=1, Kh=1)
+        return delta_e
 
     def get_color_names(self, dominant_colors):
-        def color_distance_lab(rgb_1, rgb_2):
-            """
-            LAB颜色空间 颜色距离
-            :param rgb_1:
-            :param rgb_2:
-            :return:
-            """
-            R_1, G_1, B_1 = rgb_1
-            R_2, G_2, B_2 = rgb_2
-            rmean = (R_1 + R_2) / 2
-            R = R_1 - R_2
-            G = G_1 - G_2
-            B = B_1 - B_2
-            return math.sqrt((2 + rmean / 256) * (R ** 2) + 4 * (G ** 2) + (2 + (255 - rmean) / 256) * (B ** 2))
-
-        def colour_distance_rgb(rgb_1, rgb_2):
-            v1 = (np.array(rgb_1) - 128) / 255
-            v2 = (np.array(rgb_2) - 128) / 255
-            num = float(v1.dot(v2.T))
-            denom = np.linalg.norm(v1) * np.linalg.norm(v2)
-            cos = num / (denom + 0.000001)  # 余弦值
-            sim = 0.5 + 0.5 * cos  # 根据皮尔逊相关系数归一化
-            return sim
-
-        def colour_distance_rgb2(rgb_1, rgb_2):
-            v1 = np.array(rgb_1)
-            v2 = np.array(rgb_2)
-            a = (v1 - v2) / 256
-            sim = np.sqrt(np.mean(np.square(a)))
-            return 1 - sim
-
-        def colour_distance_rgb3(rgb_1, rgb_2):
-            v1 = np.array(rgb_1) / 255
-            v2 = np.array(rgb_2) / 255
-            num = float(v1.dot(v2.T))
-            denom = np.linalg.norm(v1) * np.linalg.norm(v2)
-            cos = num / (denom + 0.000001)  # 余弦值
-            sim = cos  # 根据皮尔逊相关系数归一化
-            return sim
-
-        def colour_distance_rgb4(rgb_1, rgb_2):
-            hsv_1 = colorsys.rgb_to_hsv(rgb_1[0] / 255.0, rgb_1[1] / 255.0, rgb_1[2] / 255.0)
-            hsv_2 = colorsys.rgb_to_hsv(rgb_2[0] / 255.0, rgb_2[1] / 255.0, rgb_2[2] / 255.0)
-            v1 = np.array(hsv_1)
-            v2 = np.array(hsv_2)
-            sim = 1 - abs(v1[0] - v2[0])
-            return sim
-
-        def color_distance_lab2(rgb_1, rgb_2):
-            from colormath.color_objects import LabColor
-            from colormath.color_diff import delta_e_cie1976
-            lab1 = RGB2Lab(rgb_1[::-1])
-            lab2 = RGB2Lab(rgb_2[::-1])
-
-            color1 = LabColor(lab_l=lab1[0], lab_a=lab1[1], lab_b=lab1[2])
-            color2 = LabColor(lab_l=lab2[0], lab_a=lab2[1], lab_b=lab2[2])
-            delta_e = delta_e_cie1976(color1, color2)
-            # print(delta_e)
-            return 200 - delta_e
-
-        def HSVDistance(rgb_1, rgb_2):
-            hsv_1 = colorsys.rgb_to_hsv(rgb_1[0] / 255.0, rgb_1[1] / 255.0, rgb_1[2] / 255.0)
-            hsv_2 = colorsys.rgb_to_hsv(rgb_2[0] / 255.0, rgb_2[1] / 255.0, rgb_2[2] / 255.0)
-            H_1, S_1, V_1 = hsv_1
-            H_2, S_2, V_2 = hsv_2
-            R = 100
-            angle = 30
-            h = R * math.cos(angle / 180 * math.pi)
-            r = R * math.sin(angle / 180 * math.pi)
-            x1 = r * V_1 * S_1 * math.cos(H_1 / 180 * math.pi)
-            y1 = r * V_1 * S_1 * math.sin(H_1 / 180 * math.pi)
-            z1 = h * (1 - V_1)
-            x2 = r * V_2 * S_1 * math.cos(H_2 / 180 * math.pi)
-            y2 = r * V_2 * S_1 * math.sin(H_2 / 180 * math.pi)
-            z2 = h * (1 - V_2)
-            dx = x1 - x2
-            dy = y1 - y2
-            dz = z1 - z2
-            return math.sqrt(dx * dx + dy * dy + dz * dz)
-
+        """
+        获取与对应rgb值最相似的颜色名, 相似颜色rgb，相似颜色得分(越小越好), 该色占服饰面积百分比
+        :param dominant_colors: 服饰主体颜色  dict {rgb:ratio}
+        :return: [[相似颜色名，相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]]
+        """
         dominant_colors_names = []
-        for rgb, score in dominant_colors:
-            similar_color = ""
-            temp = -1
-            for color_name, (r, g, b) in self.costume_color_dict.items():
-                sim = color_distance_lab2(rgb, [r, g, b])
-                if sim > temp:
-                    temp = sim
-                    similar_color = color_name
-            dominant_colors_names.append(similar_color)
+        for rgb, ratio in dominant_colors.items():
+            rgb = [int(i) for i in rgb]
+            result = {color_name: self.color_distance_cie2000(rgb, [r, g, b]) for color_name, (r, g, b) in
+                      self.costume_color_dict.items()}
+            similar_color_name = min(result, key=result.get)  # 模板上最接近的颜色名
+            costume_color_rgb = self.costume_color_dict[similar_color_name]  # 模板上最接近的颜色rgb
+            similar_color_score = result[similar_color_name]
+            # [相似颜色名，相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]
+            dominant_colors_names.append([similar_color_name, costume_color_rgb, rgb, similar_color_score, ratio])
+        dominant_colors_names.sort(key=lambda elem:elem[3])
         return dominant_colors_names
+
+    def get_costume_mask(self, image_resize):
+        """
+        获取服饰位置mask
+        :param image_resize:
+        :return:
+        """
+        mask = np.zeros(image_resize.shape[:2], np.uint8)
+        bgdModel = np.zeros((1, 65), np.float64)
+        fgdModel = np.zeros((1, 65), np.float64)
+        h, w, c = image_resize.shape
+        kernel = np.ones((5, 5), np.float32) / 25
+        kerne2 = np.ones((10, 10), np.float32) / 25
+        # masks, ratios = [], []
+        datas = []
+        for boder in [0.05, 0.07, 0.09, 0.11][::-1]:
+            border_x = boder
+            border_y = boder * 1.0
+            rect = (int(w * border_x), int(h * border_y), int(w * (1 - border_x * 2)), int(h * (1 - border_y * 2)))
+            cv2.grabCut(image_resize, mask, rect, bgdModel, fgdModel, 2, cv2.GC_INIT_WITH_RECT)
+            src_mask = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')  # 获取可能是背景的区域
+            open_mask = cv2.morphologyEx(src_mask, cv2.MORPH_OPEN, kernel)  # 开运算后的mask
+            ratio = open_mask.sum() / open_mask.size  # 前景占比
+            datas.append([ratio, open_mask])
+            # cv2.imshow("image_resize", image_resize)
+            # cv2.imshow("", np.hstack((src_mask*255, open_mask*255)))
+            # cv2.waitKey(0)
+            # ratios.append(ratio)
+            # masks.append(open_mask)
+        # ratios, masks = [list(t) for t in zip(*sorted(zip(ratios, masks), reverse=True))]
+        datas.sort(key=lambda elem:elem[0], reverse=True)
+        res_mask = datas[0][1]
+        for i, (ratio, mask) in enumerate(datas):
+            if ratio < 0.55:
+                res_mask = res_mask
+                break
+        return res_mask
+
+    def get_dominant_colors(self, frame, mask):
+        """
+        获取主要颜色
+        :param frame:
+        :param mask: 用于忽略背景
+        :return:
+        """
+        frame_dominant = frame[mask.astype(np.bool)]
+        color_rgb_ratio = {tuple(bgr[::-1]): np.sum((frame_dominant == bgr)[:, 0]) / frame_dominant.shape[0] for bgr in
+                       np.unique(frame_dominant, axis=0)}
+        return color_rgb_ratio
 
     def predict(self, frame):
         """
         三通道 RGB图片
-        :param frame:
-        :return:
+        :param frame: ndarray: 三通道，uint8矩阵，通道顺序 BGR
+        :return: dict：{"color":{"颜色名1":占比，"颜色名2":占比}, "type":"纯色|拼接|花纹"}
         """
         frame = copy.deepcopy(frame)
-        height = 256
-        width = int(frame.shape[1] * height / frame.shape[0])
-        img = cv2.resize(frame, (width, height))
-        temp_color_type = self.get_color_type(img)
-        color_num = self.get_n_color(img)
-        img2 = self.get_dominant_image(img, color_num).astype(np.uint8)
-        dominant_colors1 = self.get_dominant_color1(img2, temp_color_type, color_num)  # bgr
-        # dominant_colors2 = self.get_dominant_color2(img2, temp_color_type, color_num)
-        color_names = self.get_color_names(dominant_colors1[:1])
-        return color_names
+        width = int(frame.shape[1] * self.min_height / frame.shape[0])
+        image_resize = cv2.resize(frame, (width, self.min_height))
+        mask = self.get_costume_mask(image_resize)
+        basis_color_num = self.get_basis_color_num(image_resize, mask)
+        dominant_image = self.get_dominant_image(image_resize, mask, basis_color_num)
+        dominant_color_rgb = self.get_dominant_colors(dominant_image, mask)
+        dominant_color_names = self.get_color_names(dominant_color_rgb)  # [[相似颜色名，相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]]
+        color_type = self.get_color_type(image_resize, dominant_image, mask, dominant_color_names)
+        color_names = {dominant_color_name[0]: dominant_color_name[4] for dominant_color_name in dominant_color_names}
+        result = {"color": color_names, "type": ColorType.color_dict[color_type]}
+        return result
 
-    def get_dominant_image(self, img, n_colors):
-        def recreate_image(codebook, labels, w, h):
-            """从代码簿和标签中重新创建（压缩）图像"""
-            d = codebook.shape[1]
-            image = np.zeros((w, h, d))
-            label_idx = 0
-            for i in range(w):
-                for j in range(h):
-                    image[i][j] = codebook[labels[label_idx]]
-                    label_idx += 1
-            return image
 
-        w, h, c = tuple(img.shape)
-        image_array = np.reshape(img, (w * h, c))
-        kmeans = KMeans(n_clusters=n_colors, random_state=0).fit(image_array)
-        labels = kmeans.predict(image_array)
-        image = recreate_image(kmeans.cluster_centers_, labels, w, h)
-        return image
+if __name__ == '__main__':
+    ci = ColorIdentify()
+    file_path  = "D:\\颜色识别\\花纹\\柠檬丝绒4_2996.jpg"
+    file_path = file_path.encode('utf-8').decode('utf-8')
+    frame = cv2.imdecode(np.fromfile(file_path, dtype=np.uint8), -1)
+    info = ci.predict(frame)
