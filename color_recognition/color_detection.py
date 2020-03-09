@@ -54,15 +54,17 @@ class ColorIdentify(object):
         file_path = file_path.encode('utf-8').decode('utf-8')
         # 获取数据
         data = xlrd.open_workbook(file_path)
-        table = data.sheet_by_name('Sheet1')
+        table = data.sheet_by_name('sheet_name')
         nrows = table.nrows
         # 获取一行的数值，例如第5行
         for i in range(nrows):
             rowvalue = table.row_values(i)
-            color_name1 = rowvalue[1]
-            color_value1 = rowvalue[2].strip()
+            color_name1 = rowvalue[2]
+            color_value1 = rowvalue[3].strip()
             if re.match('[0-9]* [0-9]* [0-9]*', color_value1):
-                self.costume_color_dict[color_name1] = [int(i) for i in color_value1.split(" ")]
+                color_id = int(rowvalue[0])
+                color_name = f"{color_name1}_{color_id}"
+                self.costume_color_dict[color_name] = [int(i) for i in color_value1.split(" ")]
 
     def init_basis_color_dict(self):
         """
