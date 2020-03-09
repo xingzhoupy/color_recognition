@@ -44,7 +44,7 @@ def recognition():
         traceback.print_exc()
         app.logger.exception(f"{request.data},异常：{traceback.print_exc()}")
         return jsonify(code=0, msg="内部错误")
-    return jsonify(result,)
+    return jsonify(result)
 
 
 @app.errorhandler(ValidationError)

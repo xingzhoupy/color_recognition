@@ -328,5 +328,31 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-/resources/
+
 /test/post.py
+/resources/color2/
+/resources/conf/
+/resources/conf_copy/
+/resources/image/
+/resources/image3/
+/resources/image4/
+/resources/image7/
+/resources/image8/
+/resources/result/
+/resources/test/
+/resources/train_data/
+/resources/花纹/
+/resources/_image4.zip
+/resources/color2.rar
+/resources/image.zip
+/resources/image3(1).zip
+/resources/image3.zip
+/resources/image4.zip
+/resources/image7.zip
+/resources/image8.rar
+/resources/test.rar
+/resources/train_data.rar
+/resources/~$color.xlsx
+/resources/猪圈关键字（55色）(4)(1).xlsx
+/resources/猪圈颜色关键字（五张）.zip
+/resources/花纹.rar

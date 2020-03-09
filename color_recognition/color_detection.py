@@ -28,6 +28,7 @@ from sklearn.cluster import DBSCAN, KMeans
 from sklearn.metrics import silhouette_score
 from color_recognition.util.rgb2lab import RGB2Lab
 from colormath.color_objects import LabColor
+from config import COLOR_XLSX
 
 np.random.seed(1)
 
@@ -36,11 +37,11 @@ class ColorType(object):
     PURE = 1  # 纯色
     JOINT = 2  # 拼接
     TEXTURE = 3  # 花纹
-    color_dict = {PURE:"纯色", JOINT:"拼接", TEXTURE:"花纹"}
+    color_dict = {PURE: "纯色", JOINT: "拼接", TEXTURE: "花纹"}
 
 
 class ColorIdentify(object):
-    def __init__(self, color_file_path=r'..\resources\color.xlsx'):
+    def __init__(self, color_file_path=COLOR_XLSX):
         self.min_height = 256  # 处理时压缩图片高度至此
         self.exist_colors = {}
         self.unusual_colors = []
@@ -160,7 +161,6 @@ class ColorIdentify(object):
         color_list.append(upper_purple)
         self.basis_color_dict['purple'] = color_list
 
-
     def get_dominant_image(self, frame, mask, n_colors):
         def recreate_image(codebook, labels, mask, w, h):
             """从代码簿和标签中重新创建（压缩）图像"""
@@ -177,7 +177,7 @@ class ColorIdentify(object):
 
         w, h, c = tuple(frame.shape)
         image_array = frame[mask.astype(np.bool)]
-        kmeans = KMeans(n_clusters=n_colors+1, random_state=0).fit(image_array)
+        kmeans = KMeans(n_clusters=n_colors + 1, random_state=0).fit(image_array)
         labels = kmeans.predict(image_array)
         image = recreate_image(kmeans.cluster_centers_, labels, mask, w, h)
         return image
@@ -194,16 +194,18 @@ class ColorIdentify(object):
         for i, dominant_color_name1 in enumerate(dominant_color_names):
             for j, dominant_color_name2 in enumerate(dominant_color_names[i + 1:]):
                 distance = self.color_distance_cie2000(dominant_color_name1[1], dominant_color_name2[1], Kl=1)
-                similar_color[(i,j+i+1)] = distance
+                similar_color[(i, j + i + 1)] = distance
         # 移除相近的颜色
-        [dominant_color_names_bak.pop(k[0] if dominant_color_names_bak[k[0]][3]<dominant_color_names_bak[k[1]][3] else k[1]) for k, v in similar_color.items() if v<3]
+        [dominant_color_names_bak.pop(
+            k[0] if dominant_color_names_bak[k[0]][3] < dominant_color_names_bak[k[1]][3] else k[1]) for k, v in
+            similar_color.items() if v < 3]
         all_color_rgb = np.array([i[3] for i in dominant_color_names_bak])
-        dominant_color_rgb = np.array([i[3] for i in dominant_color_names_bak if i[3]>0.1])
+        dominant_color_rgb = np.array([i[3] for i in dominant_color_names_bak if i[3] > 0.1])
         if len(all_color_rgb) > 3:
             return ColorType.TEXTURE  # 杂色
-        if 1 < len(dominant_color_rgb) <= 3 and dominant_color_rgb.max()<=0.8:
+        if 1 < len(dominant_color_rgb) <= 3 and dominant_color_rgb.max() <= 0.8:
             return ColorType.JOINT  # 拼接色
-        if len(dominant_color_rgb)==1 or dominant_color_rgb.max()>0.8:
+        if len(dominant_color_rgb) == 1 or dominant_color_rgb.max() > 0.8:
             return ColorType.PURE  # 纯色
         return color_type
 
@@ -260,7 +262,7 @@ class ColorIdentify(object):
             similar_color_score = result[similar_color_name]
             # [相似颜色名，相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]
             dominant_colors_names.append([similar_color_name, costume_color_rgb, rgb, similar_color_score, ratio])
-        dominant_colors_names.sort(key=lambda elem:elem[3])
+        dominant_colors_names.sort(key=lambda elem: elem[3])
         return dominant_colors_names
 
     def get_costume_mask(self, image_resize):
@@ -292,7 +294,7 @@ class ColorIdentify(object):
             # ratios.append(ratio)
             # masks.append(open_mask)
         # ratios, masks = [list(t) for t in zip(*sorted(zip(ratios, masks), reverse=True))]
-        datas.sort(key=lambda elem:elem[0], reverse=True)
+        datas.sort(key=lambda elem: elem[0], reverse=True)
         res_mask = datas[0][1]
         for i, (ratio, mask) in enumerate(datas):
             if ratio < 0.55:
@@ -309,7 +311,7 @@ class ColorIdentify(object):
         """
         frame_dominant = frame[mask.astype(np.bool)]
         color_rgb_ratio = {tuple(bgr[::-1]): np.sum((frame_dominant == bgr)[:, 0]) / frame_dominant.shape[0] for bgr in
-                       np.unique(frame_dominant, axis=0)}
+                           np.unique(frame_dominant, axis=0)}
         return color_rgb_ratio
 
     def predict(self, frame):
@@ -334,7 +336,7 @@ class ColorIdentify(object):
 
 if __name__ == '__main__':
     ci = ColorIdentify()
-    file_path  = "D:\\颜色识别\\花纹\\柠檬丝绒4_2996.jpg"
+    file_path = "D:\\颜色识别\\花纹\\柠檬丝绒4_2996.jpg"
     file_path = file_path.encode('utf-8').decode('utf-8')
     frame = cv2.imdecode(np.fromfile(file_path, dtype=np.uint8), -1)
     info = ci.predict(frame)
