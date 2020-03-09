@@ -6,6 +6,7 @@ import os
 
 
 def exists_file(path):
-    if os.path.exists(path):
-        return path
+    if os.path.splitext(path)[-1] in [".jpg", ".png"]:
+        if os.path.exists(path):
+            return path
     return None
