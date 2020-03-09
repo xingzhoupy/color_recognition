@@ -6,7 +6,7 @@
     "title": "The Root Schema",
     "description": "The root schema comprises the entire JSON document.",
     "required": [
-      "url"
+      "img"
     ],
     "properties": {
       "url": {

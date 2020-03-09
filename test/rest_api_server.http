@@ -1,7 +1,9 @@
 
-POST http://127.0.0.1:5050/colorDiscrimination
+POST http://222.85.230.14:12347/colorDiscrimination
 Accept: */*
 
-{"url":"/mnt/"}
+{"img":"0feiivTgcJZjtaKKK0A/9k="}
+
+###
 
 
