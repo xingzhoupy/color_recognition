@@ -4,15 +4,19 @@
 # @Site :
 import base64
 import json
-import traceback
-
-import cv2
 import numpy as np
-from flask import jsonify
+import cv2
 from flask import request
 from jsonschema import ValidationError
-
+import traceback
 from color_recognition import app, ci
+from flask import jsonify
+import base64
+from config import read_map_excel
+from color_recognition.color_map import color_map_color
+
+"""颜色映射"""
+num_to_id_color_name_dict = read_map_excel()
 
 __author__ = "zhouxing"
 
@@ -35,11 +39,12 @@ def recognition():
         nparr = np.fromstring(img, np.uint8)
         img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         result = ci.predict(img_np)
+        result = color_map_color(num_to_id_color_name_dict, result)
     except Exception as e:
         traceback.print_exc()
         app.logger.exception(f"{request.data},异常：{traceback.print_exc()}")
-        return jsonify(code=500, msg="内部错误")
-    return jsonify(code=1, color=result["color"], type=result["type"])
+        return jsonify(code=0, msg="内部错误")
+    return jsonify(result,)
 
 
 @app.errorhandler(ValidationError)
