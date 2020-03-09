@@ -2,32 +2,18 @@
 # @Time 2020/3/2 10:19
 # @Author wcy
 
-# -*- coding: utf-8 -*-
-# @Time 2020/3/7 17:11
-# @Author wcy
-
 import collections
-import colorsys
 import copy
-import csv
-import math
-import os
-import pickle
-import sys
-import copy
-import pandas as pd
-import cv2
-import imageio
-import numpy as np
 import re
-import matplotlib.pyplot as plt
+
+import cv2
+import numpy as np
 import xlrd
-from PIL import Image, ImageDraw, ImageFont
-from colormath.color_diff import delta_e_cie2000, delta_e_cmc
-from sklearn.cluster import DBSCAN, KMeans
-from sklearn.metrics import silhouette_score
-from color_recognition.util.rgb2lab import RGB2Lab
+from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor
+from sklearn.cluster import KMeans
+
+from color_recognition.util.rgb2lab import RGB2Lab
 
 np.random.seed(1)
 

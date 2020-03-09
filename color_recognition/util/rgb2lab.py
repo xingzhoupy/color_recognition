@@ -3,8 +3,6 @@
 # @Author wcy
 
 import numpy as np
-import cv2
-
 
 # region 辅助函数
 # RGB2XYZ空间的系数矩阵

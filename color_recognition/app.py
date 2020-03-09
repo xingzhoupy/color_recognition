@@ -4,15 +4,15 @@
 # @Site :
 import base64
 import json
-import numpy as np
+import traceback
+
 import cv2
+import numpy as np
+from flask import jsonify
 from flask import request
 from jsonschema import ValidationError
-import traceback
-from color_recognition import app, jsonschema, ci
-from flask import jsonify
-import base64
-from color_recognition.helper import exists_file
+
+from color_recognition import app, ci
 
 __author__ = "zhouxing"
 
