@@ -222,9 +222,9 @@ class ColorIdentify(object):
                 distance = self.color_distance_cie2000(dominant_color_name1[1], dominant_color_name2[1], Kl=1)
                 similar_color[(i, j + i + 1)] = distance
         # 移除相近的颜色
-        [dominant_color_names_bak.pop(
-            k[0] if dominant_color_names_bak[k[0]][3] < dominant_color_names_bak[k[1]][3] else k[1]) for k, v in
-            similar_color.items() if v < 3]
+        pop_index = list(set([k[0] if dominant_color_names_bak[k[0]][3] < dominant_color_names_bak[k[1]][3] else k[1] for k, v in similar_color.items() if v < 3]))
+        pop_index.sort(reverse=True)
+        pop_value = [dominant_color_names_bak.pop(i) for i in pop_index]
         return dominant_color_names_bak
 
     def get_basis_color_num(self, frame, frame_mask):
