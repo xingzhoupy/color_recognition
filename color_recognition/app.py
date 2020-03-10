@@ -38,7 +38,9 @@ def recognition():
         img = base64.b64decode(image)
         nparr = np.fromstring(img, np.uint8)
         img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        # 预测颜色结果
         result = ci.predict(img_np)
+        # 颜色映射
         result = color_map_color(num_to_id_color_name_dict, result)
     except Exception as e:
         traceback.print_exc()
