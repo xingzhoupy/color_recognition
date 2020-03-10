@@ -209,6 +209,24 @@ class ColorIdentify(object):
             return ColorType.PURE  # 纯色
         return color_type
 
+    def remove_similar_color(self, dominant_color_names):
+        """
+        移除相似颜色
+        :param dominant_color_names:
+        :return:
+        """
+        dominant_color_names_bak = copy.deepcopy(dominant_color_names)
+        similar_color = {}
+        for i, dominant_color_name1 in enumerate(dominant_color_names):
+            for j, dominant_color_name2 in enumerate(dominant_color_names[i + 1:]):
+                distance = self.color_distance_cie2000(dominant_color_name1[1], dominant_color_name2[1], Kl=1)
+                similar_color[(i, j + i + 1)] = distance
+        # 移除相近的颜色
+        [dominant_color_names_bak.pop(
+            k[0] if dominant_color_names_bak[k[0]][3] < dominant_color_names_bak[k[1]][3] else k[1]) for k, v in
+            similar_color.items() if v < 3]
+        return dominant_color_names_bak
+
     def get_basis_color_num(self, frame, frame_mask):
         """
         获取基础颜色种数
@@ -328,9 +346,10 @@ class ColorIdentify(object):
         dominant_image = self.get_dominant_image(image_resize, mask, basis_color_num)
         dominant_color_rgb = self.get_dominant_colors(dominant_image, mask)
         dominant_color_names = self.get_color_names(dominant_color_rgb)  # [[相似颜色名，相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]]
-        color_type = self.get_color_type(image_resize, dominant_image, mask, dominant_color_names)
+        # color_type = self.get_color_type(image_resize, dominant_image, mask, dominant_color_names)
+        dominant_color_names = self.remove_similar_color(dominant_color_names)
         color_names = {dominant_color_name[0]: dominant_color_name[4] for dominant_color_name in dominant_color_names}
-        result = {"color": color_names, "type": ColorType.color_dict[color_type]}
+        result = {"color": color_names}
         return result
 
 
