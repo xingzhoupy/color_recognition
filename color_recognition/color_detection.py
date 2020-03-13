@@ -177,7 +177,7 @@ class ColorIdentify(object):
 
         w, h, c = tuple(frame.shape)
         image_array = frame[mask.astype(np.bool)]
-        kmeans = KMeans(n_clusters=n_colors + 1, random_state=0).fit(image_array)
+        kmeans = KMeans(n_clusters=(max(n_colors, 1)), random_state=0).fit(image_array)
         labels = kmeans.predict(image_array)
         image = recreate_image(kmeans.cluster_centers_, labels, mask, w, h)
         return image
@@ -222,7 +222,6 @@ class ColorIdentify(object):
                 dominant_color_ratio[color_name] = dominant_color_info[0][3]
             else:
                 dominant_color_ratio[color_name] = sum([info[3] for info in dominant_color_info])
-
         return dominant_color_ratio
 
     def get_basis_color_num(self, frame, frame_mask):
@@ -253,13 +252,13 @@ class ColorIdentify(object):
                 count += 1
         return count
 
-    def color_distance_cie2000(self, rgb_1, rgb_2, Kl=2, Kc=1, Kh=1):
+    def color_distance_cie2000(self, rgb_1, rgb_2, Kl=1, Kc=1, Kh=1):
         """计算色差"""
         lab1 = RGB2Lab(rgb_1[::-1])
         lab2 = RGB2Lab(rgb_2[::-1])
         color1 = LabColor(lab_l=lab1[0], lab_a=lab1[1], lab_b=lab1[2])
         color2 = LabColor(lab_l=lab2[0], lab_a=lab2[1], lab_b=lab2[2])
-        delta_e = delta_e_cie2000(color1, color2, Kl=2, Kc=1, Kh=1)
+        delta_e = delta_e_cie2000(color1, color2, Kl=Kl, Kc=Kc, Kh=Kh)
         return delta_e
 
     def get_color_names(self, dominant_colors):
@@ -271,7 +270,7 @@ class ColorIdentify(object):
         dominant_colors_names = {}
         for rgb, ratio in dominant_colors.items():
             rgb = [int(i) for i in rgb]
-            result = {color_name: self.color_distance_cie2000(rgb, [r, g, b]) for color_name, (r, g, b) in
+            result = {color_name: self.color_distance_cie2000(rgb, [r, g, b], Kl=2, Kh=1, Kc=1) for color_name, (r, g, b) in
                       self.costume_color_dict.items()}
             similar_color_name = min(result, key=result.get)  # 模板上最接近的颜色名
             costume_color_rgb = self.costume_color_dict[similar_color_name]  # 模板上最接近的颜色rgb
@@ -346,6 +345,8 @@ class ColorIdentify(object):
         mask = self.get_costume_mask(image_resize)
         basis_color_num = self.get_basis_color_num(image_resize, mask)
         dominant_image = self.get_dominant_image(image_resize, mask, basis_color_num)
+        cv2.imshow("", np.hstack((image_resize, dominant_image)))
+        cv2.waitKey(0)
         dominant_color_rgb = self.get_dominant_colors(dominant_image, mask)
         dominant_color_names = self.get_color_names(dominant_color_rgb)  # [[相似颜色名，相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]]
         # color_type = self.get_color_type(image_resize, dominant_image, mask, dominant_color_names)
@@ -356,7 +357,7 @@ class ColorIdentify(object):
 
 if __name__ == '__main__':
     ci = ColorIdentify()
-    file_path = "../test/1584064443(1).jpg"
+    file_path = "../test/1584067693(1).jpg"
     file_path = file_path.encode('utf-8').decode('utf-8')
     frame = cv2.imdecode(np.fromfile(file_path, dtype=np.uint8), -1)
     if frame.shape[2]==4:
