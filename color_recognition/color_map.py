@@ -16,8 +16,16 @@ def color_map_color(num_to_id_color_name_dict, result):
     result = {
         "color_info": [],
         "code": 1,
-        "color_original": result["color"]
+        "color_map": []
     }
+    # 拆分未映射颜色
+    for k, v in colors.items():
+        c_name, c_id = k.split("_")
+        result["color_info"].append({
+            "map_id": c_id,
+            "map_name": c_name,
+            "map_score": v
+        })
     # 映射合并,将预测的颜色映射为excel颜色，并且将同样颜色的比例相加
     map_color = {}
     for color, score in colors.items():
@@ -36,13 +44,13 @@ def color_map_color(num_to_id_color_name_dict, result):
     for id_name, score in colors:
         if score > 0.1:
             map_id, map_name = id_name.split("_")
-            result["color_info"].append({
+            result["color_map"].append({
                 "map_id": map_id,
                 "map_name": map_name,
                 "map_score": score
             })
     # 计算类型，如果颜色大于1小于4是拼接色，>4 则是花色
-    if len(result["color_info"]) > 1 and len(result["color_info"]) <= 4:
+    if len(result["color_map"]) > 1 and len(result["color_map"]) <= 4:
         result["type"] = "拼接色"
     elif len(result["color_info"]) == 1:
         result["type"] = "纯色"
