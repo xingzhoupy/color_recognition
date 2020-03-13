@@ -216,16 +216,14 @@ class ColorIdentify(object):
         :return:
         """
         dominant_color_names_bak = copy.deepcopy(dominant_color_names)
-        similar_color = {}
-        for i, dominant_color_name1 in enumerate(dominant_color_names):
-            for j, dominant_color_name2 in enumerate(dominant_color_names[i + 1:]):
-                distance = self.color_distance_cie2000(dominant_color_name1[1], dominant_color_name2[1], Kl=1)
-                similar_color[(i, j + i + 1)] = distance
-        # 移除相近的颜色
-        pop_index = list(set([k[0] if dominant_color_names_bak[k[0]][3] < dominant_color_names_bak[k[1]][3] else k[1] for k, v in similar_color.items() if v < 3]))
-        pop_index.sort(reverse=True)
-        pop_value = [dominant_color_names_bak.pop(i) for i in pop_index]
-        return dominant_color_names_bak
+        dominant_color_ratio = {}
+        for color_name, dominant_color_info in dominant_color_names_bak.items():
+            if len(dominant_color_info)<2:
+                dominant_color_ratio[color_name] = dominant_color_info[0][3]
+            else:
+                dominant_color_ratio[color_name] = sum([info[3] for info in dominant_color_info])
+
+        return dominant_color_ratio
 
     def get_basis_color_num(self, frame, frame_mask):
         """
@@ -268,9 +266,9 @@ class ColorIdentify(object):
         """
         获取与对应rgb值最相似的颜色名, 相似颜色rgb，相似颜色得分(越小越好), 该色占服饰面积百分比
         :param dominant_colors: 服饰主体颜色  dict {rgb:ratio}
-        :return: [[相似颜色名，相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]]
+        :return: 相似颜色名:[[相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]]
         """
-        dominant_colors_names = []
+        dominant_colors_names = {}
         for rgb, ratio in dominant_colors.items():
             rgb = [int(i) for i in rgb]
             result = {color_name: self.color_distance_cie2000(rgb, [r, g, b]) for color_name, (r, g, b) in
@@ -278,9 +276,11 @@ class ColorIdentify(object):
             similar_color_name = min(result, key=result.get)  # 模板上最接近的颜色名
             costume_color_rgb = self.costume_color_dict[similar_color_name]  # 模板上最接近的颜色rgb
             similar_color_score = result[similar_color_name]
-            # [相似颜色名，相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]
-            dominant_colors_names.append([similar_color_name, costume_color_rgb, rgb, similar_color_score, ratio])
-        dominant_colors_names.sort(key=lambda elem: elem[3])
+            # 相似颜色名:[[相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]]
+            if not similar_color_name in dominant_colors_names.keys():
+                dominant_colors_names[similar_color_name] =  [[costume_color_rgb, rgb, similar_color_score, ratio]]
+            else:
+                dominant_colors_names[similar_color_name].append([costume_color_rgb, rgb, similar_color_score, ratio])
         return dominant_colors_names
 
     def get_costume_mask(self, image_resize):
@@ -306,6 +306,8 @@ class ColorIdentify(object):
             open_mask = cv2.morphologyEx(src_mask, cv2.MORPH_OPEN, kernel)  # 开运算后的mask
             ratio = open_mask.sum() / open_mask.size  # 前景占比
             datas.append([ratio, open_mask])
+            # cv2.imshow("", np.hstack((image_resize, image_resize * np.expand_dims(open_mask, axis=2))))
+            # cv2.waitKey(0)
             # cv2.imshow("image_resize", image_resize)
             # cv2.imshow("", np.hstack((src_mask*255, open_mask*255)))
             # cv2.waitKey(0)
@@ -347,15 +349,16 @@ class ColorIdentify(object):
         dominant_color_rgb = self.get_dominant_colors(dominant_image, mask)
         dominant_color_names = self.get_color_names(dominant_color_rgb)  # [[相似颜色名，相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]]
         # color_type = self.get_color_type(image_resize, dominant_image, mask, dominant_color_names)
-        dominant_color_names = self.remove_similar_color(dominant_color_names)
-        color_names = {dominant_color_name[0]: dominant_color_name[4] for dominant_color_name in dominant_color_names}
-        result = {"color": color_names}
+        dominant_color_ratio = self.remove_similar_color(dominant_color_names)
+        result = {"color": dominant_color_ratio}
         return result
 
 
 if __name__ == '__main__':
     ci = ColorIdentify()
-    file_path = "D:\\颜色识别\\花纹\\柠檬丝绒4_2996.jpg"
+    file_path = "../test/1584064443(1).jpg"
     file_path = file_path.encode('utf-8').decode('utf-8')
     frame = cv2.imdecode(np.fromfile(file_path, dtype=np.uint8), -1)
+    if frame.shape[2]==4:
+        frame = frame[..., :3]
     info = ci.predict(frame)
