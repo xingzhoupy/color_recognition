@@ -345,8 +345,8 @@ class ColorIdentify(object):
         mask = self.get_costume_mask(image_resize)
         basis_color_num = self.get_basis_color_num(image_resize, mask)
         dominant_image = self.get_dominant_image(image_resize, mask, basis_color_num)
-        cv2.imshow("", np.hstack((image_resize, dominant_image)))
-        cv2.waitKey(0)
+        # cv2.imshow("", np.hstack((image_resize, dominant_image)))
+        # cv2.waitKey(0)
         dominant_color_rgb = self.get_dominant_colors(dominant_image, mask)
         dominant_color_names = self.get_color_names(dominant_color_rgb)  # [[相似颜色名，相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]]
         # color_type = self.get_color_type(image_resize, dominant_image, mask, dominant_color_names)
