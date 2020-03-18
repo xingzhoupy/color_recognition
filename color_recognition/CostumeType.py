@@ -61,7 +61,7 @@ class CostumeType(object):
         images = self.get_image(image)
         res = self.sess.run(self.softmax, feed_dict={self.input:images})
         type = np.argmax(res)
-        return type
+        return int(type)
 
 
 if __name__ == '__main__':

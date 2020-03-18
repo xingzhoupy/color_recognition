@@ -18,7 +18,7 @@ if __name__ == '__main__':
     file_path = file_path.encode('utf-8').decode('utf-8')
     # url = "http://127.0.0.1:5050/colorDiscrimination"
     # url = "http://222.85.230.14:12347/colorDiscrimination"
-    file_path = r"1584064443(1).jpg"
+    file_path = r"../test/1584064443(1).jpg"
     # file_path = r"D:\pySpace\color_recognition\resources\color2\薰衣草红2\薰衣草红2_5813.jpg"
     # file_path = r"C:\Users\Xiaoi\Desktop\1391.jpg"
     # file_path = file_path.encode('utf-8').decode('utf-8')
@@ -27,5 +27,6 @@ if __name__ == '__main__':
     base64_pic = base64.b64encode(buffer)
     base64_pic = base64_pic.decode()
     data = {"img": base64_pic}
-    r = requests.post(url, data=json.dumps(data))
+    r = requests.post(url, json=data)
+    # r = requests.post(url, data=json.dumps(data))
     pprint.pprint(r.json())
