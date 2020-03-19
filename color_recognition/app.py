@@ -44,9 +44,9 @@ def recognition():
         # 预测颜色结果
         result = ci.predict(img_np)
         # 颜色类型
-        color_type = type = ct.predict(img_np)
+        color_type = ct.predict(img_np)
         # 颜色映射
-        result = color_map_color(num_to_id_color_name_dict, result,color_type)
+        result = color_map_color(num_to_id_color_name_dict, result, color_type)
 
     except Exception as e:
         traceback.print_exc()

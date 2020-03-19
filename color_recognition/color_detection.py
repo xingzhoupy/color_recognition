@@ -7,27 +7,18 @@
 # @Author wcy
 
 import collections
-import colorsys
 import copy
-import csv
-import math
-import os
-import pickle
-import sys
-import copy
-import pandas as pd
-import cv2
-import imageio
-import numpy as np
 import re
-import matplotlib.pyplot as plt
+
+import cv2
+import numpy as np
+import requests
 import xlrd
-from PIL import Image, ImageDraw, ImageFont
-from colormath.color_diff import delta_e_cie2000, delta_e_cmc
-from sklearn.cluster import DBSCAN, KMeans
-from sklearn.metrics import silhouette_score
-from color_recognition.util.rgb2lab import RGB2Lab
+from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor
+from sklearn.cluster import KMeans
+
+from color_recognition.util.rgb2lab import RGB2Lab
 from config import COLOR_XLSX
 
 np.random.seed(1)
@@ -218,7 +209,7 @@ class ColorIdentify(object):
         dominant_color_names_bak = copy.deepcopy(dominant_color_names)
         dominant_color_ratio = {}
         for color_name, dominant_color_info in dominant_color_names_bak.items():
-            if len(dominant_color_info)<2:
+            if len(dominant_color_info) < 2:
                 dominant_color_ratio[color_name] = dominant_color_info[0][3]
             else:
                 dominant_color_ratio[color_name] = sum([info[3] for info in dominant_color_info])
@@ -270,14 +261,15 @@ class ColorIdentify(object):
         dominant_colors_names = {}
         for rgb, ratio in dominant_colors.items():
             rgb = [int(i) for i in rgb]
-            result = {color_name: self.color_distance_cie2000(rgb, [r, g, b], Kl=2, Kh=1, Kc=1) for color_name, (r, g, b) in
+            result = {color_name: self.color_distance_cie2000(rgb, [r, g, b], Kl=2, Kh=1, Kc=1) for
+                      color_name, (r, g, b) in
                       self.costume_color_dict.items()}
             similar_color_name = min(result, key=result.get)  # 模板上最接近的颜色名
             costume_color_rgb = self.costume_color_dict[similar_color_name]  # 模板上最接近的颜色rgb
             similar_color_score = result[similar_color_name]
             # 相似颜色名:[[相似颜色rgb，提取颜色rgb，颜色色差， 颜色占比]]
             if not similar_color_name in dominant_colors_names.keys():
-                dominant_colors_names[similar_color_name] =  [[costume_color_rgb, rgb, similar_color_score, ratio]]
+                dominant_colors_names[similar_color_name] = [[costume_color_rgb, rgb, similar_color_score, ratio]]
             else:
                 dominant_colors_names[similar_color_name].append([costume_color_rgb, rgb, similar_color_score, ratio])
         return dominant_colors_names
@@ -321,6 +313,26 @@ class ColorIdentify(object):
                 break
         return res_mask
 
+    def get_costume_mask_by_web(self, image_resize):
+        try:
+            cv2.imwrite("temp.jpg", image_resize)
+            response = requests.post(
+                'http://www.picup.shop/api/v1/matting',  # (物体抠图请用  http://www.picup.shop/api/v1/matting?mattingType=2)
+                files={'file': open('temp.jpg', 'rb')},
+                headers={'APIKEY': '2ed5315490774392a667ba30ba638bd1'},
+            )
+            if response.status_code==200:
+                content = response.content
+                nparr = np.fromstring(content, np.uint8)
+                image = cv2.imdecode(nparr, -1)
+                mask = image[..., 3]
+                ret, mask = cv2.threshold(mask, 127, 1, 0)
+                return mask
+            else:
+                return None
+        except Exception as e:
+            return None
+
     def get_dominant_colors(self, frame, mask):
         """
         获取主要颜色
@@ -342,7 +354,9 @@ class ColorIdentify(object):
         frame = copy.deepcopy(frame)
         width = int(frame.shape[1] * self.min_height / frame.shape[0])
         image_resize = cv2.resize(frame, (width, self.min_height))
-        mask = self.get_costume_mask(image_resize)
+        mask = self.get_costume_mask_by_web(image_resize)
+        if mask is None:
+            mask = self.get_costume_mask(image_resize)
         basis_color_num = self.get_basis_color_num(image_resize, mask)
         dominant_image = self.get_dominant_image(image_resize, mask, basis_color_num)
         # cv2.imshow("", np.hstack((image_resize, dominant_image)))
@@ -357,9 +371,9 @@ class ColorIdentify(object):
 
 if __name__ == '__main__':
     ci = ColorIdentify()
-    file_path = "../test/1584067693(1).jpg"
+    file_path = "../test/image/2.jpg"
     file_path = file_path.encode('utf-8').decode('utf-8')
     frame = cv2.imdecode(np.fromfile(file_path, dtype=np.uint8), -1)
-    if frame.shape[2]==4:
+    if frame.shape[2] == 4:
         frame = frame[..., :3]
     info = ci.predict(frame)
