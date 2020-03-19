@@ -58,7 +58,7 @@ def color_match(access_token, image_base64, top_num=5):
 
 
 if __name__ == '__main__':
-    image_path = r"D:\pySpace\color_recognition\resources\color2\薰衣草红2\薰衣草红2_5813.jpg"
+    image_path = r"../test/1583848577(1).jpg"
     access_token = get_access_token(client_id="8TT2Bw4MBxGIBjSdx2Mfven7",
                                     client_secret="L06KGXrK4GD6fGzIM5R6zdsk00mEXybu")
     image_base64 = image_to_base64(image_path=image_path)

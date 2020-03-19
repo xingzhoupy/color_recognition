@@ -18,8 +18,9 @@ import numpy as np
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_YAML = os.path.join(BASE_DIR, 'log.yaml')
 RESOURCE_PATH = os.path.join(BASE_DIR, 'resources')
-COLOR_MAP_PAth = os.path.join(RESOURCE_PATH, "454色按53色关键字归类(1).xlsx")
+COLOR_MAP_PAth = os.path.join(RESOURCE_PATH, "副本454色按78色关键字归类(2020年3月18日更新）(1).xlsx")
 COLOR_XLSX = os.path.join(RESOURCE_PATH, "color.xlsx")
+model_path = f'{RESOURCE_PATH}{os.sep}pb_model{os.sep}model.pb'
 # 百度在线翻译账户密码
 baidu_key = "20190808000324931"
 baidu_passwd = "K52NIO04wx20O8gV1YF7"

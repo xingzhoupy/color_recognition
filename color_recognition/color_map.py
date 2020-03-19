@@ -4,7 +4,7 @@
 # @Author: zhouxing
 # PRODUCT_NAME: PyCharm
 
-def color_map_color(num_to_id_color_name_dict, result):
+def color_map_color(num_to_id_color_name_dict, result,color_type):
     """
     将预测的颜色对应色板
     :param num_to_id_color_name_dict:预测颜色id：色板ID_颜色中文名称
@@ -16,7 +16,8 @@ def color_map_color(num_to_id_color_name_dict, result):
     result = {
         "color_info": [],
         "code": 1,
-        "color_map": []
+        "color_map": [],
+        "color_type":color_type
     }
     # 拆分未映射颜色
     for k, v in colors.items():
@@ -49,11 +50,4 @@ def color_map_color(num_to_id_color_name_dict, result):
                 "map_name": map_name,
                 "map_score": score
             })
-    # 计算类型，如果颜色大于1小于4是拼接色，>4 则是花色
-    if len(result["color_map"]) > 1 and len(result["color_map"]) <= 4:
-        result["type"] = "拼接色"
-    elif len(result["color_info"]) == 1:
-        result["type"] = "纯色"
-    else:
-        result["type"] = "花色"
     return result
