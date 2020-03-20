@@ -30,12 +30,10 @@ def hello_world():
 
 
 @app.route('/colorDiscrimination', methods=['POST'])
-# @jsonschema.validate('api', 'recognition')
 def recognition():
     """OA接口"""
     try:
         request_data = json.loads(request.data)
-        # app.logger.info("请求参数：{}".format(request_data))
         # 获取参数
         image = request_data["img"]
         img = base64.b64decode(image)
@@ -47,7 +45,6 @@ def recognition():
         color_type = ct.predict(img_np)
         # 颜色映射
         result = color_map_color(num_to_id_color_name_dict, result, color_type)
-
     except Exception as e:
         traceback.print_exc()
         app.logger.exception(f"{request.data},异常：{traceback.print_exc()}")

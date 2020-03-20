@@ -4,7 +4,7 @@
 # @Author: zhouxing
 # PRODUCT_NAME: PyCharm
 
-def color_map_color(num_to_id_color_name_dict, result,color_type):
+def color_map_color(num_to_id_color_name_dict, result, color_type):
     """
     将预测的颜色对应色板
     :param num_to_id_color_name_dict:预测颜色id：色板ID_颜色中文名称
@@ -17,7 +17,7 @@ def color_map_color(num_to_id_color_name_dict, result,color_type):
         "color_info": [],
         "code": 1,
         "color_map": [],
-        "color_type":color_type
+        "color_type": color_type
     }
     # 拆分未映射颜色
     for k, v in colors.items():
