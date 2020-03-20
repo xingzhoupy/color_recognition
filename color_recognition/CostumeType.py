@@ -60,7 +60,7 @@ class CostumeType(object):
 
     def predict(self, image):
         images = self.get_image(image)
-        res = self.sess.run(self.softmax, feed_dict={self.input: images})
+        res = self.sess.run(self.softmax, feed_dict={self.input:images})
         type = np.argmax(res)
         return int(type)
 
