@@ -49,8 +49,17 @@ def read_map_excel():
     df = pd.read_excel(COLOR_MAP_PAth)
     df = df.replace(to_replace=np.nan, value="")
     for _, row in df.iterrows():
-        nums = str(row["序号"]).replace(",","，")
+        nums = str(row["序号"]).replace(",", "，")
         for num in nums.split("，"):
             num_to_id_color_name_dict[num] = f"{row['编号']}_{row['中文名称']}"
 
     return num_to_id_color_name_dict
+
+
+def read_color_excel():
+    num_to_rgb_dict = {}
+    df = pd.read_excel(COLOR_XLSX)
+    df = df.replace(to_replace=np.nan, value="")
+    for i, row in df.iterrows():
+        num_to_rgb_dict[i] = row["颜色RGB"]
+    return num_to_rgb_dict

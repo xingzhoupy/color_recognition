@@ -2,7 +2,6 @@
 # @Time : 2019/12/23 9:20 
 # @Author : Allen 
 # @Site :
-import base64
 import json
 import numpy as np
 import cv2
@@ -14,11 +13,12 @@ from flask import jsonify
 import base64
 
 from color_recognition.CostumeType import CostumeType
-from config import read_map_excel
+from config import read_map_excel, read_color_excel
 from color_recognition.color_map import color_map_color
 
 """颜色映射"""
 num_to_id_color_name_dict = read_map_excel()
+num_to_rgb = read_color_excel()
 ct = CostumeType()
 
 __author__ = "zhouxing"
@@ -44,7 +44,7 @@ def recognition():
         # 颜色类型
         color_type = ct.predict(img_np)
         # 颜色映射
-        result = color_map_color(num_to_id_color_name_dict, result, color_type)
+        result = color_map_color(num_to_id_color_name_dict, result, color_type,num_to_rgb)
     except Exception as e:
         traceback.print_exc()
         app.logger.exception(f"{request.data},异常：{traceback.print_exc()}")
