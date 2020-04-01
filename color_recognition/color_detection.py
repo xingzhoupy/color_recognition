@@ -9,6 +9,8 @@
 import collections
 import copy
 import re
+import os
+import uuid
 
 import cv2
 import numpy as np
@@ -33,6 +35,9 @@ class ColorType(object):
 
 class ColorIdentify(object):
     def __init__(self, color_file_path=COLOR_XLSX):
+        self.root_path = "dataset"
+        if not os.path.exists(self.root_path):
+            os.makedirs(self.root_path)
         self.min_height = 256  # 处理时压缩图片高度至此
         self.exist_colors = {}
         self.unusual_colors = []
@@ -288,7 +293,7 @@ class ColorIdentify(object):
         kerne2 = np.ones((10, 10), np.float32) / 25
         # masks, ratios = [], []
         datas = []
-        for boder in [0.05, 0.07, 0.09, 0.11][::-1]:
+        for boder in [0.01, 0.03, 0.05, 0.07, 0.09, 0.11][::-1]:
             border_x = boder
             border_y = boder * 1.0
             rect = (int(w * border_x), int(h * border_y), int(w * (1 - border_x * 2)), int(h * (1 - border_y * 2)))
@@ -298,7 +303,7 @@ class ColorIdentify(object):
             ratio = open_mask.sum() / open_mask.size  # 前景占比
             datas.append([ratio, open_mask])
             # cv2.imshow("", np.hstack((image_resize, image_resize * np.expand_dims(open_mask, axis=2))))
-            # cv2.waitKey(0)
+            # cv2.waitKey(1000)
             # cv2.imshow("image_resize", image_resize)
             # cv2.imshow("", np.hstack((src_mask*255, open_mask*255)))
             # cv2.waitKey(0)
@@ -315,10 +320,13 @@ class ColorIdentify(object):
 
     def get_costume_mask_by_web(self, image_resize):
         try:
-            cv2.imwrite("temp.jpg", image_resize)
+            file_name = uuid.uuid4()
+            image_path = os.path.join(self.root_path, f"image_{file_name}.jpg")
+            mask_path = os.path.join(self.root_path, f"mask_{file_name}.jpg")
+            cv2.imwrite(image_path, image_resize)
             response = requests.post(
                 'http://www.picup.shop/api/v1/matting',  # (物体抠图请用  http://www.picup.shop/api/v1/matting?mattingType=2)
-                files={'file': open('temp.jpg', 'rb')},
+                files={'file': open(image_path, 'rb')},
                 headers={'APIKEY': '2ed5315490774392a667ba30ba638bd1'},
             )
             if response.status_code==200:
@@ -326,6 +334,7 @@ class ColorIdentify(object):
                 nparr = np.fromstring(content, np.uint8)
                 image = cv2.imdecode(nparr, -1)
                 mask = image[..., 3]
+                cv2.imwrite(mask_path, mask)
                 ret, mask = cv2.threshold(mask, 127, 1, 0)
                 return mask
             else:
@@ -371,7 +380,7 @@ class ColorIdentify(object):
 
 if __name__ == '__main__':
     ci = ColorIdentify()
-    file_path = "../test/image/2.jpg"
+    file_path = "../test/image/12.jpg"
     file_path = file_path.encode('utf-8').decode('utf-8')
     frame = cv2.imdecode(np.fromfile(file_path, dtype=np.uint8), -1)
     if frame.shape[2] == 4:
