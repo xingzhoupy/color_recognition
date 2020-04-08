@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*- 
 # @Time 2020/3/18 18:06
 # @Author wcy
+import time
+
 import cv2
 import tensorflow as tf
 from PIL import Image
 import numpy as np
+import sys
+sys.path.append("../")
 from config import model_path
 
 
@@ -67,5 +71,7 @@ class CostumeType(object):
 
 if __name__ == '__main__':
     ct = CostumeType()
-    res = ct.predict(cv2.imread("../test/10.png"))
-    print()
+    while True:
+        res = ct.predict(cv2.imread("../test/image/10.jpg"))
+        time.sleep(0.1)
+        print(res)
