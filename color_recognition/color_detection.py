@@ -173,6 +173,9 @@ class ColorIdentify(object):
 
         w, h, c = tuple(frame.shape)
         image_array = frame[mask.astype(np.bool)]
+        # 判断image_array
+        if len(image_array) == 0:
+            return frame
         kmeans = KMeans(n_clusters=(max(n_colors, 1)), random_state=0).fit(image_array)
         labels = kmeans.predict(image_array)
         image = recreate_image(kmeans.cluster_centers_, labels, mask, w, h)
@@ -329,7 +332,7 @@ class ColorIdentify(object):
                 files={'file': open(image_path, 'rb')},
                 headers={'APIKEY': '2ed5315490774392a667ba30ba638bd1'},
             )
-            if response.status_code==200:
+            if response.status_code == 200:
                 content = response.content
                 nparr = np.fromstring(content, np.uint8)
                 image = cv2.imdecode(nparr, -1)
