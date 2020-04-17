@@ -9,7 +9,7 @@ import cv2
 from flask import request
 from jsonschema import ValidationError
 import traceback
-from color_recognition import app, ci
+from color_recognition import app, colorIdentify, costumeStyle
 from flask import jsonify
 import base64
 
@@ -40,11 +40,30 @@ def recognition():
         nparr = np.fromstring(img, np.uint8)
         img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         # 预测颜色结果
-        result = ci.predict(img_np)
+        result = colorIdentify.predict(img_np)
         # 颜色类型
         color_type = ct.predict(img_np)
         # 颜色映射
         result = color_map_color(num_to_id_color_name_dict, result, color_type)
+    except Exception as e:
+        traceback.print_exc()
+        app.logger.exception(f"{request.data},异常：{traceback.print_exc()}")
+        return jsonify(code=0, msg="内部错误")
+    return jsonify(result)
+
+
+@app.route('/costumeStyle', methods=['POST'])
+def costume_style():
+    """OA接口"""
+    try:
+        request_data = json.loads(request.data)
+        # 获取参数
+        image = request_data["img"]
+        img = base64.b64decode(image)
+        nparr = np.fromstring(img, np.uint8)
+        img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        # 预测服饰款式
+        result = costumeStyle.predict(img_np)
     except Exception as e:
         traceback.print_exc()
         app.logger.exception(f"{request.data},异常：{traceback.print_exc()}")
