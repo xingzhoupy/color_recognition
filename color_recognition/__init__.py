@@ -4,6 +4,8 @@ from logging.config import dictConfig
 import yaml
 from flask import Flask
 from flask_jsonschema import JsonSchema
+
+from color_recognition.costume_style import CostumeStyle
 from config import BASE_DIR, Config, LOG_YAML
 from pprint import pprint
 from color_recognition.color_detection import ColorIdentify
@@ -32,7 +34,8 @@ def create_app():
 
 app = create_app()
 
-ci = ColorIdentify() # 服饰颜色鉴别器
+colorIdentify = ColorIdentify() # 服饰颜色鉴别器
+costumeStyle = CostumeStyle() # 服饰款式鉴别器
 
 # if __name__ == "__main__":
 #     pass
