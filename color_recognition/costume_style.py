@@ -30,6 +30,7 @@ class CostumeStyle(object):
 
         self.input = self.sess.graph.get_tensor_by_name('inputs:0')
         self.output = self.sess.graph.get_tensor_by_name('outputs:0')
+        self.feature = self.sess.graph.get_tensor_by_name('feature:0')
         self.sess.run(self.output, feed_dict={self.input: np.zeros((200, 128, 3), dtype=np.uint8)})
 
     def get_image(self, frame):
@@ -53,10 +54,22 @@ class CostumeStyle(object):
         all_class = {class_name: float(score) for class_name, score in zip(self.class_name_dict, softmax[0])}
         return {"class_name": class_name, "score": score, "all_class": all_class}
 
+    def get_image_feature(self, image):
+        """
+        获取图片特征
+        :param image: BGR图片
+        :return: 2048维的数组
+        """
+        images = self.get_image(image)
+        feature = self.sess.run(self.feature, feed_dict={self.input: images[..., ::1]})
+        return feature
+
 
 if __name__ == '__main__':
     ct = CostumeStyle()
     while True:
-        res = ct.predict(cv2.imread("../test/image/111.jpg"))
+        image = cv2.imread("../test/image/111.jpg")
+        res = ct.predict(image)
+        feature = ct.get_image_feature(image)
         time.sleep(0.1)
         print(res)

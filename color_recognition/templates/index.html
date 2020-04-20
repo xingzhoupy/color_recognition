@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>个人信息获取</title>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="https://cdn.bootcss.com/jquery.form/4.2.1/jquery.form.min.js"></script>
+    <script>
+        //判断浏览器是否支持HTML5的Canvas
+        window.onload = function () {
+            try {
+            }
+            catch (e) {
+            }
+        };
+        //获取摄像头的视频流并显示在Video 签中
+        window.addEventListener("DOMContentLoaded", function () {
+            var canvas = document.getElementById("canvas"),
+                context = canvas.getContext("2d"),
+                video = document.getElementById("video"),
+                videoObj = { "video": true },
+                errBack = function (error) {
+                    console.log("Video capture error: ", error.code);
+                };
+            $("#snap").click(function () {
+                context.drawImage(video, 0, 40, 330, 250);
+            })
+            if (navigator.getUserMedia) {
+                navigator.getUserMedia(videoObj, function (stream) {
+                    video.srcObject = stream;
+                    video.play();
+                }, errBack);
+            } else if (navigator.webkitGetUserMedia) {
+                navigator.webkitGetUserMedia(videoObj, function (stream) {
+                    video.src = window.webkitURL.createObjectURL(stream);
+                    video.play();
+                }, errBack);
+            }
+        }, false)
+        function push() {
+            var data = new FormData($("#form1")[0]);
+            var canvans = document.getElementById("canvas");
+            var imgData = canvans.toDataURL();
+            console.log(canvans.toLocaleString());
+            //data.append("card",$("#card").val());
+            //data.append("name",$("#name").val());
+            //data.append("canvas",$("#canvas").val());
+			var imgData = document.getElementById("canvas").toDataURL("image/png");
+			var photo = imgData.substr(22);
+            data.append("img",imgData);
+            console.log(canvas);
+            $.ajax({
+                url: 'http://127.0.0.1:5050/costumeStyle',
+                //url: 'http://222.85.230.14:12347/costumeStyle',
+                type: 'post',
+				dataType: 'json',
+                contentType: false,
+                data: JSON.stringify({"img":photo}) ,
+                //data: {"img":photo} ,
+                processData: false,
+                success:function(info){
+                    console.log(info);
+                    x=document.getElementById("card");
+                    x.value=info["class_name"]+"  "+info["score"];
+                },
+                error:function(err){
+                    console.log(err)
+                }
+            });
+        }
+
+        function savea1(selector,name){
+            var a = document.createElement('a')
+            a.download = name || 'pic'
+            a.href = document.getElementById("canvas").toDataURL();
+            a.click();
+        }
+
+
+    </script>
+</head>
+<body>
+<form id="form1" method="post" enctype="multipart/form-data">
+<div id="contentHolder">
+    <video id="video" width="320" height="320" autoplay></video>
+    <input type="button" id="snap" style="width:100px;height:35px;" value="拍 照" />
+    <canvas style="" id="canvas" width="320" height="320"></canvas>
+    <input type="button" value="上传" id="ok" style="width:100px;height:35px;" onclick="push()"/>
+    <input type="button" value="保存到本地" id="baocun" style="width:100px;height:35px;" onclick="savea1('canvas')"/>
+
+</div>
+<div class="form-group">
+    <label class="sr-only" for="name">结果：</label>
+    <input type="text" class="form-control" name="card" id="card" placeholder="请输入身份证号">
+</div>
+<div class="form-group">
+    <label class="sr-only" for="name">姓名：&nbsp &nbsp &nbsp &nbsp</label>
+    <input type="text" class="form-control" name="name" id="name" placeholder="请输入姓名">
+</div>
+</form>
+</body>
+</html>

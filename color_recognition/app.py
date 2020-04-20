@@ -5,7 +5,7 @@
 import json
 import numpy as np
 import cv2
-from flask import request
+from flask import request, render_template
 from jsonschema import ValidationError
 import traceback
 from color_recognition import app, colorIdentify, costumeStyle
@@ -26,7 +26,7 @@ __author__ = "zhouxing"
 
 @app.route('/', methods=['GET'])
 def hello_world():
-    return "Hello World!"
+    return render_template("index.html")#homepage.html在templates文件夹下
 
 
 @app.route('/colorDiscrimination', methods=['POST'])
